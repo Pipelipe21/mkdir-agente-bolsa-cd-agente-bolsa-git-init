@@ -53,12 +53,18 @@ class ConsoleNotifier:
         print(text, end="\n\n")
 
 
-def format_signal(signal: Signal) -> str:
+def format_signal(signal: Signal, context: str | None = None) -> str:
     icon, label = ("🟢", "COMPRA") if signal.direction is Direction.BUY else ("🔴", "VENTA")
     asset = signal.asset
-    return (
+    text = (
         f"{icon} <b>{label} · {html.escape(asset.symbol)}</b> ({asset.type})\n"
         f"Estrategia: <code>{html.escape(signal.strategy)}</code> · fuerza {signal.strength:.2f}\n"
         f"{html.escape(signal.reason)}\n"
         f"Vela: {signal.ts:%Y-%m-%d %H:%M} UTC"
     )
+    if context:
+        text += (
+            "\n\n📰 <b>Contexto</b> (resumen de noticias con IA, no es recomendación)\n"
+            f"{html.escape(context)}"
+        )
+    return text

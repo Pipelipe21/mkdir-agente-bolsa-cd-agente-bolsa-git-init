@@ -3,6 +3,8 @@
 Uso local:
     uv run --env-file .env python -m jobs.radar            # envía por Telegram
     uv run python -m jobs.radar --dry-run                  # imprime en consola
+
+Si ANTHROPIC_API_KEY está definida, cada alerta incluye un resumen de noticias con Claude.
 """
 
 import argparse
@@ -49,10 +51,24 @@ def run(assets: list[Asset], executor, notifier: Notifier, timeframe: str = "1d"
     return 1 if assets and len(failures) == len(assets) else 0
 
 
+def build_news_context():
+    """Resumen de noticias solo si hay llave de Claude; si no, las alertas salen sin él."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        log.info("ANTHROPIC_API_KEY no definida: alertas sin resumen de noticias")
+        return None
+    import anthropic
+
+    from core.data.news import fetch_headlines
+    from core.llm import NewsSummarizer
+
+    return NewsSummarizer(anthropic.Anthropic(), fetch_headlines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Radar de señales (fase 1)")
     parser.add_argument("--dry-run", action="store_true", help="imprimir en vez de enviar")
     parser.add_argument("--timeframe", default="1d")
+    parser.add_argument("--no-news", action="store_true", help="no agregar resumen de noticias")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -65,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         mode = get_execution_mode()
 
-    executor = build_executor(mode, notifier)
+    executor = build_executor(mode, notifier, None if args.no_news else build_news_context())
     return run(load_watchlist(), executor, notifier, args.timeframe)
 
 
