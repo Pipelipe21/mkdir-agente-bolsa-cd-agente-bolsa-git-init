@@ -150,3 +150,28 @@ def test_run_continues_and_fails_when_an_alert_cannot_be_sent(monkeypatch):
     assert code == 1  # para que Cloud Run reintente
     assert sum("VENTA" in m for m in notifier.messages) == 1  # la segunda señal sí salió
     assert any("Envío BTC/USDT/rsi" in m for m in notifier.messages)
+
+
+def test_is_fresh_evaluates_each_daily_candle_once():
+    from core.data import is_fresh
+
+    friday = pd.Timestamp("2024-01-05 05:00", tz="UTC")  # vela diaria de acciones (00:00 NY)
+    saturday_run = datetime(2024, 1, 6, 12, tzinfo=UTC)
+    sunday_run = datetime(2024, 1, 7, 12, tzinfo=UTC)
+    assert is_fresh(friday, "1d", saturday_run)
+    assert not is_fresh(friday, "1d", sunday_run)  # fin de semana: no se repite
+
+    crypto = pd.Timestamp("2024-01-06", tz="UTC")
+    assert is_fresh(crypto, "1d", sunday_run)
+
+
+def test_find_chat_ids_dedupes_and_ignores_non_messages():
+    from jobs.telegram_setup import find_chat_ids
+
+    updates = [
+        {"message": {"chat": {"id": 42}}},
+        {"message": {"chat": {"id": 42}}},
+        {"edited_message": {"chat": {"id": 7}}},
+        {"my_chat_member": {}},
+    ]
+    assert find_chat_ids(updates) == [42, 7]

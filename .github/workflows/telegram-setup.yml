@@ -1,0 +1,21 @@
+name: Configurar Telegram
+
+# Se corre a mano una vez: te envía tu TELEGRAM_CHAT_ID por Telegram.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+      - name: Enviar chat_id
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: uv run python -m jobs.telegram_setup

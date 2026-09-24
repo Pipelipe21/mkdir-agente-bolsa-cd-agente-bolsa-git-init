@@ -1,0 +1,41 @@
+name: Radar diario
+
+on:
+  schedule:
+    - cron: "0 12 * * *"  # 12:00 UTC: ya cerró la vela diaria de acciones y de cripto
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Prueba: mostrar las alertas en el log, sin enviarlas por Telegram"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+      - name: Correr el radar
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          EXECUTION_MODE: alert
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            uv run python -m jobs.radar --dry-run
+          else
+            uv run python -m jobs.radar
+          fi

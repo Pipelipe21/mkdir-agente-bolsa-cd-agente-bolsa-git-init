@@ -14,7 +14,7 @@ import os
 import sys
 
 from core.config import get_execution_mode, load_watchlist
-from core.data import drop_incomplete, get_provider
+from core.data import drop_incomplete, get_provider, is_fresh
 from core.db import NullRepository, PostgresRepository, Repository, connect
 from core.executors import BaseExecutor, build_executor
 from core.indicators import add_indicators
@@ -28,6 +28,9 @@ log = logging.getLogger("radar")
 def scan_asset(asset: Asset, timeframe: str) -> list[Signal]:
     candles = get_provider(asset).get_candles(asset, timeframe=timeframe)
     candles = drop_incomplete(candles, timeframe)
+    if candles.empty or not is_fresh(candles.index[-1], timeframe):
+        log.info("%s: sin vela nueva desde la última corrida", asset.symbol)
+        return []
     return run_strategies(asset, add_indicators(candles))
 
 

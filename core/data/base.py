@@ -34,3 +34,14 @@ def drop_incomplete(
     now = now or datetime.now(UTC)
     closes_at = candles.index + parse_timeframe(timeframe)
     return candles[closes_at <= now]
+
+
+def is_fresh(last_ts: pd.Timestamp, timeframe: str, now: datetime | None = None) -> bool:
+    """True si la vela cerró dentro del último período.
+
+    Con una corrida por período (p. ej. diaria), cada vela se evalúa una sola vez: el fin de
+    semana no se repite la alerta de acciones del viernes, aun sin base de datos.
+    """
+    now = now or datetime.now(UTC)
+    step = parse_timeframe(timeframe)
+    return last_ts + step > now - step
