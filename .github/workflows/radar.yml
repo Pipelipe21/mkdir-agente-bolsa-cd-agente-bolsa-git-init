@@ -37,5 +37,5 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then
             uv run python -m jobs.radar --dry-run
           else
-            uv run python -m jobs.radar
+            uv run python -m jobs.radar --summary
           fi

@@ -40,6 +40,7 @@ def run(
     notifier: Notifier,
     timeframe: str = "1d",
     repo: Repository | None = None,
+    summary: bool = False,
 ) -> int:
     """Escanea cada activo; un error en uno no detiene al resto.
 
@@ -83,6 +84,16 @@ def run(
             notifier.send("⚠️ Radar con errores\n" + "\n".join(failures))
         except Exception:  # noqa: BLE001 — si el canal está caído, queda al menos en el log
             log.exception("No se pudo enviar el resumen de errores")
+    elif summary:
+        # Confirma que el radar corrió aunque no haya alertas (útil para evaluar la fase 1).
+        try:
+            notifier.send(
+                f"✅ Radar corrió: {len(assets)} activos, {sent} alerta(s)"
+                + (f", {skipped} ya enviada(s)" if skipped else "")
+            )
+        except Exception:  # noqa: BLE001
+            log.exception("No se pudo enviar el resumen diario")
+            send_errors += 1
     log.info(
         "Fin: %d alerta(s), %d repetida(s), %d error(es) de %d activos",
         sent, skipped, len(failures), len(assets),
@@ -117,6 +128,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="imprimir en vez de enviar")
     parser.add_argument("--timeframe", default="1d")
     parser.add_argument("--no-news", action="store_true", help="no agregar resumen de noticias")
+    parser.add_argument(
+        "--summary", action="store_true", help="enviar un resumen al final aunque no haya alertas"
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -134,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
 
     context = None if args.no_news else build_news_context()
     executor = build_executor(mode, notifier, context, repo)
-    return run(load_watchlist(), executor, notifier, args.timeframe, repo)
+    return run(load_watchlist(), executor, notifier, args.timeframe, repo, args.summary)
 
 
 if __name__ == "__main__":

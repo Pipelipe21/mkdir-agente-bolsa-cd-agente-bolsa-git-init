@@ -185,3 +185,13 @@ def test_describe_token_shape_never_reveals_token():
     hint = describe_token_shape(" bot" + secret + "\n")
     assert "AAE" not in hint and "123456789" not in hint
     assert "espacios" in hint
+
+
+def test_summary_sent_when_no_alerts(monkeypatch):
+    monkeypatch.setattr(radar, "scan_asset", lambda a, t: [])
+    notifier = RecordingNotifier()
+    assert radar.run([ASSET], AlertExecutor(notifier), notifier, summary=True) == 0
+    assert notifier.messages == ["✅ Radar corrió: 1 activos, 0 alerta(s)"]
+    silent = RecordingNotifier()
+    radar.run([ASSET], AlertExecutor(silent), silent)
+    assert silent.messages == []
