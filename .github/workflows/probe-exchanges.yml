@@ -1,0 +1,31 @@
+name: Probar exchanges (temporal)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+      - run: |
+          uv run python - <<'PY'
+          import ccxt
+          bases = ["BTC", "ETH", "SOL", "BNB", "XRP"]
+          for ex_id in ["binanceus", "kraken", "coinbase", "bitstamp", "kucoin", "okx", "bybit", "gateio", "bitfinex"]:
+              try:
+                  ex = getattr(ccxt, ex_id)({"enableRateLimit": True})
+                  ex.load_markets()
+                  row = []
+                  for b in bases:
+                      sym = next((f"{b}/{q}" for q in ("USDT", "USD", "USDC") if f"{b}/{q}" in ex.markets), None)
+                      if sym:
+                          n = len(ex.fetch_ohlcv(sym, "1d", limit=300))
+                          row.append(f"{sym}:{n}")
+                      else:
+                          row.append(f"{b}:-")
+                  print(f"{ex_id:10} OK  " + "  ".join(row))
+              except Exception as e:
+                  print(f"{ex_id:10} ERR {type(e).__name__}: {str(e)[:90]}")
+          PY
