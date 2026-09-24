@@ -12,6 +12,8 @@ API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 class Notifier(Protocol):
+    channel: str
+
     def send(self, text: str) -> None: ...
 
 
@@ -27,6 +29,8 @@ def _post_json(url: str, payload: dict) -> dict:
 
 
 class TelegramNotifier:
+    channel = "telegram"
+
     def __init__(self, token: str, chat_id: str, post: Callable[[str, dict], dict] = _post_json):
         if not token or not chat_id:
             raise ValueError("Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID")
@@ -48,6 +52,8 @@ class TelegramNotifier:
 
 class ConsoleNotifier:
     """Imprime en vez de enviar. Para pruebas locales (--dry-run)."""
+
+    channel = "console"
 
     def send(self, text: str) -> None:
         print(text, end="\n\n")

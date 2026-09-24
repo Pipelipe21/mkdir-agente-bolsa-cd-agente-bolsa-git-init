@@ -20,4 +20,6 @@ uv run --env-file .env python -m jobs.radar    # las envía por Telegram
 Evalúa solo velas cerradas. Pensado para correr una vez al día (p. ej. 12:00 UTC),
 cuando ya cerró la vela diaria de acciones y de cripto.
 
-Configuración de Telegram y de la API de Claude: ver [docs/telegram.md](docs/telegram.md).
+Configuración:
+- Telegram y API de Claude: [docs/telegram.md](docs/telegram.md)
+- Supabase (historial y deduplicación): [docs/supabase.md](docs/supabase.md)

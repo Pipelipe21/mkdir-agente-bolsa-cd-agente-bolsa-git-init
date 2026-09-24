@@ -2,9 +2,10 @@
 
 Uso local:
     uv run --env-file .env python -m jobs.radar            # envía por Telegram
-    uv run python -m jobs.radar --dry-run                  # imprime en consola
+    uv run python -m jobs.radar --dry-run                  # imprime en consola, no guarda
 
 Si ANTHROPIC_API_KEY está definida, cada alerta incluye un resumen de noticias con Claude.
+Si DATABASE_URL está definida, señales y alertas se guardan y no se repite una alerta ya enviada.
 """
 
 import argparse
@@ -14,7 +15,8 @@ import sys
 
 from core.config import get_execution_mode, load_watchlist
 from core.data import drop_incomplete, get_provider
-from core.executors import build_executor
+from core.db import NullRepository, PostgresRepository, Repository, connect
+from core.executors import BaseExecutor, build_executor
 from core.indicators import add_indicators
 from core.models import Asset, ExecutionMode, Signal
 from core.strategies import run_strategies
@@ -29,26 +31,47 @@ def scan_asset(asset: Asset, timeframe: str) -> list[Signal]:
     return run_strategies(asset, add_indicators(candles))
 
 
-def run(assets: list[Asset], executor, notifier: Notifier, timeframe: str = "1d") -> int:
+def run(
+    assets: list[Asset],
+    executor: BaseExecutor,
+    notifier: Notifier,
+    timeframe: str = "1d",
+    repo: Repository | None = None,
+) -> int:
     """Escanea cada activo; un error en uno no detiene al resto. Devuelve el código de salida."""
+    repo = repo or NullRepository()
     failures: list[str] = []
-    total = 0
+    sent = skipped = scan_errors = 0
     for asset in assets:
         try:
             signals = scan_asset(asset, timeframe)
         except Exception as exc:  # noqa: BLE001 — se reporta y se sigue con el siguiente
             log.exception("Error escaneando %s", asset.symbol)
             failures.append(f"{asset.symbol}: {type(exc).__name__}")
+            scan_errors += 1
             continue
         for signal in signals:
-            executor.execute(signal)
-        total += len(signals)
+            try:
+                saved = repo.save_signal(signal)
+            except Exception as exc:  # noqa: BLE001 — la alerta importa más que el registro
+                log.exception("No se pudo guardar la señal de %s", asset.symbol)
+                failures.append(f"DB {asset.symbol}: {type(exc).__name__}")
+                saved = signal
+            if saved is None:
+                log.info("%s/%s ya fue alertada, se omite", asset.symbol, signal.strategy)
+                skipped += 1
+                continue
+            executor.execute(saved)
+            sent += 1
         log.info("%s: %d señal(es)", asset.symbol, len(signals))
 
     if failures:
         notifier.send("⚠️ Radar con errores\n" + "\n".join(failures))
-    log.info("Fin: %d señal(es), %d error(es) de %d activos", total, len(failures), len(assets))
-    return 1 if assets and len(failures) == len(assets) else 0
+    log.info(
+        "Fin: %d alerta(s), %d repetida(s), %d error(es) de %d activos",
+        sent, skipped, len(failures), len(assets),
+    )
+    return 1 if assets and scan_errors == len(assets) else 0
 
 
 def build_news_context():
@@ -64,6 +87,14 @@ def build_news_context():
     return NewsSummarizer(anthropic.Anthropic(), fetch_headlines)
 
 
+def build_repository() -> Repository:
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        log.info("DATABASE_URL no definida: no se guarda historial")
+        return NullRepository()
+    return PostgresRepository(connect(url))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Radar de señales (fase 1)")
     parser.add_argument("--dry-run", action="store_true", help="imprimir en vez de enviar")
@@ -73,16 +104,20 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     if args.dry_run:
+        # En dry-run no se guarda: si guardara, la alerta real posterior se omitiría por repetida.
         notifier: Notifier = ConsoleNotifier()
         mode = ExecutionMode.ALERT
+        repo: Repository = NullRepository()
     else:
         notifier = TelegramNotifier(
             os.environ.get("TELEGRAM_BOT_TOKEN", ""), os.environ.get("TELEGRAM_CHAT_ID", "")
         )
         mode = get_execution_mode()
+        repo = build_repository()
 
-    executor = build_executor(mode, notifier, None if args.no_news else build_news_context())
-    return run(load_watchlist(), executor, notifier, args.timeframe)
+    context = None if args.no_news else build_news_context()
+    executor = build_executor(mode, notifier, context, repo)
+    return run(load_watchlist(), executor, notifier, args.timeframe, repo)
 
 
 if __name__ == "__main__":

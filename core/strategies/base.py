@@ -30,7 +30,7 @@ class BaseStrategy(ABC):
             asset=asset,
             strategy=self.name,
             direction=direction,
-            strength=round(min(max(strength, 0.0), 1.0), 3),
+            strength=float(round(min(max(strength, 0.0), 1.0), 3)),
             reason=reason,
             ts=candles.index[-1].to_pydatetime(),
         )

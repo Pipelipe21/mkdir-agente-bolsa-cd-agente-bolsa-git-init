@@ -109,3 +109,21 @@ def test_run_fails_when_every_asset_fails(monkeypatch):
     monkeypatch.setattr(radar, "scan_asset", lambda a, t: (_ for _ in ()).throw(OSError()))
     notifier = RecordingNotifier()
     assert radar.run([ASSET], AlertExecutor(notifier), notifier) == 1
+
+
+class FailingRepo:
+    def save_signal(self, signal):
+        raise ConnectionError("db caída")
+
+    def save_alert(self, signal, channel, llm_summary):
+        raise AssertionError("no debería llamarse: la señal no tiene id")
+
+
+def test_run_still_alerts_when_db_fails(monkeypatch):
+    monkeypatch.setattr(radar, "scan_asset", lambda a, t: [make_signal(), make_signal(Direction.SELL)])
+    notifier = RecordingNotifier()
+    repo = FailingRepo()
+    code = radar.run([ASSET], AlertExecutor(notifier, repo=repo), notifier, repo=repo)
+    assert code == 0  # hubo errores de DB, pero el activo se escaneó
+    assert sum("COMPRA" in m or "VENTA" in m for m in notifier.messages) == 2
+    assert any("DB BTC/USDT" in m for m in notifier.messages)

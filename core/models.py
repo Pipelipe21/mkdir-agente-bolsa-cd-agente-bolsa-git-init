@@ -1,6 +1,6 @@
 """Modelos de dominio compartidos por todos los niveles (alert, backtest, paper, live)."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 
@@ -45,10 +45,14 @@ class Signal:
     strength: float  # 0.0–1.0
     reason: str
     ts: datetime = field(default_factory=lambda: datetime.now(UTC))
+    id: int | None = field(default=None, compare=False)  # asignado al guardarse en la DB
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.strength <= 1.0:
             raise ValueError(f"strength debe estar entre 0 y 1, llegó {self.strength}")
+
+    def with_id(self, signal_id: int) -> "Signal":
+        return replace(self, id=signal_id)
 
 
 @dataclass(frozen=True)

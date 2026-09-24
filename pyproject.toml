@@ -8,6 +8,7 @@ dependencies = [
     "anthropic>=1.8.0",
     "ccxt>=4.5.84",
     "pandas>=2.2",
+    "psycopg[binary]>=3.3.6",
     "pyyaml>=6.0",
     "yfinance>=1.7.0",
 ]

@@ -53,11 +53,13 @@ Un solo motor de señales alimenta todos los niveles:
     pwa/             # fase 3
 
 ## Modelo de datos (Supabase)
-- `assets` — símbolo, tipo (stock/crypto), exchange, activo
+Esquema en `migrations/` (SQL plano, aplicado con `python -m jobs.migrate`). Acceso con `psycopg`.
+- `assets` — symbol, type (stock/crypto), exchange, active
 - `candles` — asset_id, timeframe, ts, OHLCV
-- `signals` — asset_id, strategy, direction, strength, reason, ts
-- `alerts` — signal_id, canal, enviado_ts, resumen_llm
+- `signals` — asset_id, strategy, direction, strength, reason, ts (único por vela: evita alertas repetidas)
+- `alerts` — signal_id, channel, sent_at, llm_summary
 - `trades` — signal_id, mode (backtest/paper/live), side, qty, price, fees, pnl, ts
+- RLS activo en todas las tablas y sin políticas: la API REST pública de Supabase no ve nada.
 
 ## Reglas de seguridad (obligatorias)
 - Nunca commitear llaves ni `.env`. Usar `.env.example` con placeholders.
