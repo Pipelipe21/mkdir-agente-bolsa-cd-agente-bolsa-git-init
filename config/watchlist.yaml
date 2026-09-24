@@ -7,7 +7,8 @@ stocks:
   - symbol: NVDA
 
 crypto:
-  exchange: binance
+  # Kraken: Binance bloquea servidores en EE.UU. (como los de GitHub Actions).
+  exchange: kraken
   symbols:
     - symbol: BTC/USDT
     - symbol: ETH/USDT
