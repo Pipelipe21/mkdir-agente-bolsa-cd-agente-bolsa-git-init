@@ -9,3 +9,13 @@ uv sync
 cp .env.example .env   # completar llaves
 uv run pytest
 ```
+
+## Radar (fase 1)
+
+```bash
+uv run python -m jobs.radar --dry-run          # imprime las señales en consola
+uv run --env-file .env python -m jobs.radar    # las envía por Telegram
+```
+
+Evalúa solo velas cerradas. Pensado para correr una vez al día (p. ej. 12:00 UTC),
+cuando ya cerró la vela diaria de acciones y de cripto.
