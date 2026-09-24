@@ -44,7 +44,7 @@ def apply_migrations(conn: psycopg.Connection, directory: Path = MIGRATIONS_DIR)
 
 class Repository(Protocol):
     def save_signal(self, signal: Signal) -> Signal | None:
-        """Guarda la señal y la devuelve con id. None si esa señal ya existía (duplicada)."""
+        """Guarda la señal y la devuelve con id. None si su alerta ya se envió antes."""
 
     def save_alert(self, signal: Signal, channel: str, llm_summary: str | None) -> None: ...
 
@@ -78,12 +78,19 @@ class PostgresRepository:
         return self._asset_ids[asset]
 
     def save_signal(self, signal: Signal) -> Signal | None:
-        row = self.conn.execute(
+        # Si la señal ya existe se reutiliza su id. Solo se descarta si ya tiene alerta: así,
+        # si Telegram falló en la corrida anterior, el reintento vuelve a enviarla.
+        signal_id, already_alerted = self.conn.execute(
             """
-            insert into signals (asset_id, strategy, direction, strength, reason, ts)
-            values (%s, %s, %s, %s, %s, %s)
-            on conflict (asset_id, strategy, direction, ts) do nothing
-            returning id
+            with upserted as (
+                insert into signals (asset_id, strategy, direction, strength, reason, ts)
+                values (%s, %s, %s, %s, %s, %s)
+                on conflict (asset_id, strategy, direction, ts)
+                    do update set strength = excluded.strength, reason = excluded.reason
+                returning id
+            )
+            select id, exists (select 1 from alerts where alerts.signal_id = upserted.id)
+            from upserted
             """,
             (
                 self.asset_id(signal.asset),
@@ -94,7 +101,7 @@ class PostgresRepository:
                 signal.ts,
             ),
         ).fetchone()
-        return None if row is None else signal.with_id(row[0])
+        return None if already_alerted else signal.with_id(signal_id)
 
     def save_alert(self, signal: Signal, channel: str, llm_summary: str | None) -> None:
         if signal.id is None:

@@ -42,11 +42,14 @@ def test_rls_enabled_on_all_tables(db_conn):
     assert rows == []
 
 
-def test_save_signal_assigns_id_and_dedupes(db_conn):
+def test_save_signal_reuses_id_until_alerted(db_conn):
     repo = PostgresRepository(db_conn)
     first = repo.save_signal(make_signal())
     assert first.id is not None
-    assert repo.save_signal(make_signal()) is None  # misma vela, misma estrategia
+    # Misma vela y estrategia sin alerta enviada: se reutiliza para reintentar.
+    assert repo.save_signal(make_signal()).id == first.id
+    repo.save_alert(first, "test", None)
+    assert repo.save_signal(make_signal()) is None  # ya alertada: se descarta
     assert repo.save_signal(make_signal(strategy="bollinger")).id != first.id
 
 
@@ -87,3 +90,20 @@ def test_run_does_not_repeat_alerts(db_conn, monkeypatch):
     radar.run([SPY, BTC], executor, notifier, repo=repo)  # segunda corrida, mismas velas
     assert len(notifier.messages) == 2
     assert db_conn.execute("select count(*) from alerts").fetchone()[0] == 2
+
+
+def test_retry_resends_alert_that_failed(db_conn, monkeypatch):
+    monkeypatch.setattr(radar, "scan_asset", lambda asset, tf: [make_signal(asset)])
+    repo = PostgresRepository(db_conn)
+
+    class DownNotifier(RecordingNotifier):
+        def send(self, text):
+            raise ConnectionError("telegram caído")
+
+    down = DownNotifier()
+    assert radar.run([SPY], AlertExecutor(down, repo=repo), down, repo=repo) == 1
+
+    ok = RecordingNotifier()
+    assert radar.run([SPY], AlertExecutor(ok, repo=repo), ok, repo=repo) == 0
+    assert len(ok.messages) == 1  # el reintento sí la envía
+    assert db_conn.execute("select count(*) from signals").fetchone()[0] == 1

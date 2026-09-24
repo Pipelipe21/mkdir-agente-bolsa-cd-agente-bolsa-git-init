@@ -127,3 +127,26 @@ def test_run_still_alerts_when_db_fails(monkeypatch):
     assert code == 0  # hubo errores de DB, pero el activo se escaneó
     assert sum("COMPRA" in m or "VENTA" in m for m in notifier.messages) == 2
     assert any("DB BTC/USDT" in m for m in notifier.messages)
+
+
+class FlakyNotifier(RecordingNotifier):
+    """Falla en el primer envío y funciona en los siguientes."""
+
+    def __init__(self):
+        super().__init__()
+        self.failed = False
+
+    def send(self, text):
+        if not self.failed:
+            self.failed = True
+            raise ConnectionError("telegram caído")
+        super().send(text)
+
+
+def test_run_continues_and_fails_when_an_alert_cannot_be_sent(monkeypatch):
+    monkeypatch.setattr(radar, "scan_asset", lambda a, t: [make_signal(), make_signal(Direction.SELL)])
+    notifier = FlakyNotifier()
+    code = radar.run([ASSET], AlertExecutor(notifier), notifier)
+    assert code == 1  # para que Cloud Run reintente
+    assert sum("VENTA" in m for m in notifier.messages) == 1  # la segunda señal sí salió
+    assert any("Envío BTC/USDT/rsi" in m for m in notifier.messages)

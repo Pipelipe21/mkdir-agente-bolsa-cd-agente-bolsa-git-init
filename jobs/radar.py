@@ -38,10 +38,14 @@ def run(
     timeframe: str = "1d",
     repo: Repository | None = None,
 ) -> int:
-    """Escanea cada activo; un error en uno no detiene al resto. Devuelve el código de salida."""
+    """Escanea cada activo; un error en uno no detiene al resto.
+
+    Código de salida 1 si no se pudo escanear ningún activo o si falló el envío de alguna
+    alerta: así Cloud Run reintenta, y las alertas ya enviadas no se repiten.
+    """
     repo = repo or NullRepository()
     failures: list[str] = []
-    sent = skipped = scan_errors = 0
+    sent = skipped = scan_errors = send_errors = 0
     for asset in assets:
         try:
             signals = scan_asset(asset, timeframe)
@@ -61,17 +65,27 @@ def run(
                 log.info("%s/%s ya fue alertada, se omite", asset.symbol, signal.strategy)
                 skipped += 1
                 continue
-            executor.execute(saved)
+            try:
+                executor.execute(saved)
+            except Exception as exc:  # noqa: BLE001 — se sigue con las demás señales
+                log.exception("No se pudo ejecutar la señal de %s", asset.symbol)
+                failures.append(f"Envío {asset.symbol}/{signal.strategy}: {type(exc).__name__}")
+                send_errors += 1
+                continue
             sent += 1
         log.info("%s: %d señal(es)", asset.symbol, len(signals))
 
     if failures:
-        notifier.send("⚠️ Radar con errores\n" + "\n".join(failures))
+        try:
+            notifier.send("⚠️ Radar con errores\n" + "\n".join(failures))
+        except Exception:  # noqa: BLE001 — si el canal está caído, queda al menos en el log
+            log.exception("No se pudo enviar el resumen de errores")
     log.info(
         "Fin: %d alerta(s), %d repetida(s), %d error(es) de %d activos",
         sent, skipped, len(failures), len(assets),
     )
-    return 1 if assets and scan_errors == len(assets) else 0
+    all_scans_failed = bool(assets) and scan_errors == len(assets)
+    return 1 if all_scans_failed or send_errors else 0
 
 
 def build_news_context():
