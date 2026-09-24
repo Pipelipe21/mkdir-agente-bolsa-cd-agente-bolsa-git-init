@@ -17,7 +17,7 @@ dist/
 build/
 
 # Datos locales
-data/
+/data/
 *.parquet
 *.sqlite
 
