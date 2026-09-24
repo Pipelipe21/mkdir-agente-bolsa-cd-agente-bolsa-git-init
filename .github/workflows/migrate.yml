@@ -1,0 +1,21 @@
+name: Crear/actualizar tablas (Supabase)
+
+# Se corre a mano: aplica las migraciones pendientes de migrations/ usando el secret DATABASE_URL.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+      - name: Aplicar migraciones
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: uv run python -m jobs.migrate
