@@ -5,8 +5,10 @@ description = "Radar de señales para acciones y cripto, con evolución a paper/
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "ccxt>=4.5.84",
     "pandas>=2.2",
     "pyyaml>=6.0",
+    "yfinance>=1.7.0",
 ]
 
 [dependency-groups]
