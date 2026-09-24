@@ -6,8 +6,11 @@ Uso: escribe cualquier mensaje a tu bot y luego
 El chat_id no se imprime (los logs de GitHub Actions de un repo público son visibles).
 """
 
+import json
 import os
+import re
 import sys
+import urllib.error
 
 from notifier.telegram import API_URL, TelegramNotifier, _post_json
 
@@ -22,17 +25,49 @@ def find_chat_ids(updates: list[dict]) -> list[int]:
     return ids
 
 
+TOKEN_RE = re.compile(r"^\d{6,}:[A-Za-z0-9_-]{30,}$")
+
+
+def describe_token_shape(token: str) -> str:
+    """Pistas sobre el formato sin revelar el token."""
+    hints = [f"{len(token)} caracteres"]
+    if token != token.strip():
+        hints.append("tiene espacios o saltos de línea al inicio/fin")
+    if " " in token.strip():
+        hints.append("tiene espacios en medio (¿pegaste texto de más?)")
+    if token.strip().lower().startswith("bot"):
+        hints.append("empieza con 'bot' (pega solo el token, sin 'bot')")
+    if ":" not in token:
+        hints.append("no tiene ':' (un token se ve como 123456789:AAE...)")
+    return "; ".join(hints)
+
+
 def main() -> int:
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    if not token:
-        print("Falta TELEGRAM_BOT_TOKEN", file=sys.stderr)
+    raw = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not raw:
+        print("Falta el secret TELEGRAM_BOT_TOKEN", file=sys.stderr)
+        return 1
+    token = raw.strip()
+    if token.lower().startswith("bot"):
+        token = token[3:]
+    if not TOKEN_RE.match(token):
+        print(f"El secret no tiene formato de token: {describe_token_shape(raw)}", file=sys.stderr)
         return 1
     url = API_URL.replace("sendMessage", "getUpdates").format(token=token)
     try:
         result = _post_json(url, {})
-    except Exception as exc:  # noqa: BLE001
-        print(f"Telegram rechazó el token ({type(exc).__name__}). ¿Lo copiaste completo?",
-              file=sys.stderr)
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read()).get("description", "")
+        except Exception:  # noqa: BLE001
+            detail = ""
+        reasons = {
+            401: "token inválido o revocado (¿guardaste el token viejo en vez del nuevo?)",
+            404: "token mal formado (¿se cortó al copiarlo?)",
+            409: "el bot tiene un webhook activo; desactívalo o crea otro bot",
+        }
+        reason = reasons.get(exc.code, "error inesperado")
+        print(f"Telegram respondió {exc.code}: {reason}. Detalle: {detail}", file=sys.stderr)
         return 1
     chat_ids = find_chat_ids(result.get("result", []))
     if not chat_ids:

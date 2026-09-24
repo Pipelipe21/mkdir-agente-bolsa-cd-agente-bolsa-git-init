@@ -175,3 +175,13 @@ def test_find_chat_ids_dedupes_and_ignores_non_messages():
         {"my_chat_member": {}},
     ]
     assert find_chat_ids(updates) == [42, 7]
+
+
+def test_describe_token_shape_never_reveals_token():
+    from jobs.telegram_setup import TOKEN_RE, describe_token_shape
+
+    secret = "123456789:AAEabcdefghijklmnopqrstuvwxyz012345"
+    assert TOKEN_RE.match(secret)
+    hint = describe_token_shape(" bot" + secret + "\n")
+    assert "AAE" not in hint and "123456789" not in hint
+    assert "espacios" in hint
