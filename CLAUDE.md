@@ -34,7 +34,9 @@ Un solo motor de señales alimenta todos los niveles:
 - Indicadores: `pandas` + `pandas-ta`
 - Backtesting (fase 2): `vectorbt`
 - DB: Supabase (Postgres)
-- Infra: GCP — Cloud Run Jobs + Cloud Scheduler; secretos en Secret Manager
+- Infra: GitHub Actions (cron diario; secretos en GitHub Secrets). Alternativa lista: GCP —
+  Cloud Run Jobs + Cloud Scheduler + Secret Manager (`deploy/gcp.sh`)
+- Cripto: datos de Kraken vía ccxt (Binance bloquea servidores de EE.UU.)
 - Alertas: bot de Telegram (fase 1), Web Push en PWA (fase 3)
 - API (fase 3): FastAPI. PWA (fase 3): por definir
 
@@ -50,8 +52,9 @@ Un solo motor de señales alimenta todos los niveles:
     config/
       watchlist.yaml
     migrations/      # SQL del esquema de Supabase
+    .github/workflows/  # radar diario, tests, configuración de Telegram
     deploy/          # gcp.sh: Cloud Run Job + Scheduler + Secret Manager
-    docs/            # guías de configuración (Telegram, Supabase, GCP)
+    docs/            # guías de configuración (GitHub Actions, Telegram, Supabase, GCP)
     tests/
     pwa/             # fase 3
 

@@ -21,6 +21,7 @@ Evalúa solo velas cerradas. Pensado para correr una vez al día (p. ej. 12:00 U
 cuando ya cerró la vela diaria de acciones y de cripto.
 
 Configuración:
+- **Correr el radar todos los días (recomendado): [docs/github-actions.md](docs/github-actions.md)**
 - Telegram y API de Claude: [docs/telegram.md](docs/telegram.md)
 - Supabase (historial y deduplicación): [docs/supabase.md](docs/supabase.md)
-- Despliegue en GCP (Cloud Run Job diario): [docs/gcp.md](docs/gcp.md)
+- Alternativa: despliegue en GCP (Cloud Run Job diario): [docs/gcp.md](docs/gcp.md)
