@@ -1,0 +1,17 @@
+# Nunca meter secretos en la imagen
+.env
+.env.*
+*.pem
+*.key
+service-account*.json
+
+.git/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+tests/
+docs/
+pwa/
+data/

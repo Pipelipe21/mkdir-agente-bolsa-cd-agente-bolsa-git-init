@@ -1,0 +1,17 @@
+# Lo que NO se sube a Cloud Build con `gcloud run jobs deploy --source .`
+.gcloudignore
+.git/
+.gitignore
+.env
+.env.*
+*.pem
+*.key
+service-account*.json
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+docs/
+pwa/
+data/

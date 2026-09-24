@@ -49,6 +49,9 @@ Un solo motor de señales alimenta todos los niveles:
     notifier/        # Telegram
     config/
       watchlist.yaml
+    migrations/      # SQL del esquema de Supabase
+    deploy/          # gcp.sh: Cloud Run Job + Scheduler + Secret Manager
+    docs/            # guías de configuración (Telegram, Supabase, GCP)
     tests/
     pwa/             # fase 3
 

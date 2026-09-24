@@ -23,3 +23,4 @@ cuando ya cerró la vela diaria de acciones y de cripto.
 Configuración:
 - Telegram y API de Claude: [docs/telegram.md](docs/telegram.md)
 - Supabase (historial y deduplicación): [docs/supabase.md](docs/supabase.md)
+- Despliegue en GCP (Cloud Run Job diario): [docs/gcp.md](docs/gcp.md)
