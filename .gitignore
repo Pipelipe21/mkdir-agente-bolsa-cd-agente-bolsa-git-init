@@ -1,0 +1,27 @@
+# Secretos: nunca commitear
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Datos locales
+data/
+*.parquet
+*.sqlite
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store

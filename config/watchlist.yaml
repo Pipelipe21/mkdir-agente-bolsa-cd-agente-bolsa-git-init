@@ -1,0 +1,16 @@
+# Watchlist de la fase 1: ~5 acciones/ETFs + ~5 criptos.
+stocks:
+  - symbol: SPY
+  - symbol: QQQ
+  - symbol: AAPL
+  - symbol: MSFT
+  - symbol: NVDA
+
+crypto:
+  exchange: binance
+  symbols:
+    - symbol: BTC/USDT
+    - symbol: ETH/USDT
+    - symbol: SOL/USDT
+    - symbol: BNB/USDT
+    - symbol: XRP/USDT
