@@ -207,11 +207,11 @@ def test_describe_url_classifies_without_revealing():
     assert "YOUR-PASSWORD" in describe_url("postgresql://u:[YOUR-PASSWORD]@h.pooler.supabase.com:5432/p")
 
 
-def test_redact_hides_password_and_user():
-    from jobs.migrate import redact
+def test_password_problem_detects_special_chars_without_revealing():
+    from jobs.migrate import password_problem
 
-    url = "postgresql://postgres.abcd:p%40ss@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
-    msg = 'connection failed: FATAL: password authentication failed for user "postgres.abcd" (p@ss)'
-    out = redact(msg, url)
-    assert "abcd" not in out and "p@ss" not in out
-    assert "***" in out
+    host = "aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
+    msg = password_problem(f"postgresql://postgres.ab:abc@SECRETO9@{host}")
+    assert msg and "@" in msg and "SECRETO9" not in msg
+    assert password_problem(f"postgresql://postgres.ab:ab#cd@{host}")
+    assert password_problem(f"postgresql://postgres.ab:Abc123xyz@{host}") is None

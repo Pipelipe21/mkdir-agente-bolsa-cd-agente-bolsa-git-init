@@ -48,19 +48,19 @@ def describe_url(url: str) -> str:
     return "; ".join(notes)
 
 
-def redact(text: str, url: str) -> str:
-    """Quita del texto la contraseña, el usuario y el identificador del proyecto."""
-    from urllib.parse import unquote, urlsplit
-
-    try:
-        parts = urlsplit(url.strip())
-        secrets = [parts.password, parts.username]
-    except ValueError:
-        secrets = []
-    for secret in filter(None, secrets):
-        for variant in {secret, unquote(secret)}:
-            text = text.replace(variant, "***")
-    return text
+def password_problem(url: str) -> str | None:
+    """Detecta caracteres que rompen la dirección, sin mostrar la contraseña."""
+    rest = url.strip().split("://", 1)[-1]
+    if rest.count("@") > 1:
+        return ("La contraseña contiene '@', que rompe la dirección. Cambia la contraseña en "
+                "Supabase por una solo con letras y números y actualiza el secret DATABASE_URL.")
+    userinfo = rest.rsplit("@", 1)[0] if "@" in rest else ""
+    password = userinfo.split(":", 1)[1] if ":" in userinfo else ""
+    bad = sorted({c for c in password if c in "/?#[]% "})
+    if bad:
+        return ("La contraseña contiene caracteres especiales que rompen la dirección. Usa una "
+                "contraseña solo con letras y números y actualiza el secret DATABASE_URL.")
+    return None
 
 
 def main() -> int:
@@ -69,13 +69,16 @@ def main() -> int:
     if not url:
         print("Falta DATABASE_URL", file=sys.stderr)
         return 1
+    problem = password_problem(url)
+    if problem:
+        print(problem, file=sys.stderr)
+        return 1
     try:
         conn = connect(url.strip())
     except Exception as exc:  # noqa: BLE001
         print(f"No se pudo conectar a la base de datos ({type(exc).__name__}): "
               f"{_hint(str(exc))}", file=sys.stderr)
         print(f"Dirección recibida → {describe_url(url)}", file=sys.stderr)
-        print(f"Error original (sin datos sensibles): {redact(str(exc), url)}", file=sys.stderr)
         return 1
     with conn:
         applied = apply_migrations(conn)
