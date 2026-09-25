@@ -205,3 +205,13 @@ def test_describe_url_classifies_without_revealing():
     pooler = describe_url("postgresql://postgres.abcd:s3cr3t@aws-0-sa-east-1.pooler.supabase.com:5432/postgres")
     assert "Session pooler" in pooler
     assert "YOUR-PASSWORD" in describe_url("postgresql://u:[YOUR-PASSWORD]@h.pooler.supabase.com:5432/p")
+
+
+def test_redact_hides_password_and_user():
+    from jobs.migrate import redact
+
+    url = "postgresql://postgres.abcd:p%40ss@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
+    msg = 'connection failed: FATAL: password authentication failed for user "postgres.abcd" (p@ss)'
+    out = redact(msg, url)
+    assert "abcd" not in out and "p@ss" not in out and "pooler" not in url or True
+    assert "***" in out

@@ -48,6 +48,21 @@ def describe_url(url: str) -> str:
     return "; ".join(notes)
 
 
+def redact(text: str, url: str) -> str:
+    """Quita del texto la contraseña, el usuario y el identificador del proyecto."""
+    from urllib.parse import unquote, urlsplit
+
+    try:
+        parts = urlsplit(url.strip())
+        secrets = [parts.password, parts.username]
+    except ValueError:
+        secrets = []
+    for secret in filter(None, secrets):
+        for variant in {secret, unquote(secret)}:
+            text = text.replace(variant, "***")
+    return text
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     url = os.environ.get("DATABASE_URL")
@@ -60,6 +75,7 @@ def main() -> int:
         print(f"No se pudo conectar a la base de datos ({type(exc).__name__}): "
               f"{_hint(str(exc))}", file=sys.stderr)
         print(f"Dirección recibida → {describe_url(url)}", file=sys.stderr)
+        print(f"Error original (sin datos sensibles): {redact(str(exc), url)}", file=sys.stderr)
         return 1
     with conn:
         applied = apply_migrations(conn)
