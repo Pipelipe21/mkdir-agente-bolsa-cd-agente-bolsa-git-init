@@ -24,6 +24,30 @@ def _hint(error: str) -> str:
     return "revisa que el secret DATABASE_URL sea la URI completa del Session pooler"
 
 
+def describe_url(url: str) -> str:
+    """Describe el tipo de dirección sin revelar contraseña ni identificador del proyecto."""
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(url.strip())
+        host, port = parts.hostname or "", parts.port
+    except ValueError:
+        return "no se pudo leer la dirección (¿caracteres especiales en la contraseña?)"
+    notes = []
+    if parts.scheme not in ("postgresql", "postgres"):
+        notes.append("no empieza con postgresql://")
+    if host.endswith("pooler.supabase.com"):
+        kind = "Session pooler" if port == 5432 else f"Transaction pooler (puerto {port})"
+    elif host.startswith("db.") and host.endswith(".supabase.co"):
+        kind = "Direct connection (no funciona desde GitHub: usa Session pooler)"
+    else:
+        kind = "no parece una dirección de Supabase"
+    notes.append(f"tipo: {kind}")
+    if "YOUR-PASSWORD" in url or "[" in url:
+        notes.append("todavía contiene [YOUR-PASSWORD]: reemplázalo por tu contraseña")
+    return "; ".join(notes)
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     url = os.environ.get("DATABASE_URL")
@@ -35,6 +59,7 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         print(f"No se pudo conectar a la base de datos ({type(exc).__name__}): "
               f"{_hint(str(exc))}", file=sys.stderr)
+        print(f"Dirección recibida → {describe_url(url)}", file=sys.stderr)
         return 1
     with conn:
         applied = apply_migrations(conn)
