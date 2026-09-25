@@ -213,5 +213,5 @@ def test_redact_hides_password_and_user():
     url = "postgresql://postgres.abcd:p%40ss@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
     msg = 'connection failed: FATAL: password authentication failed for user "postgres.abcd" (p@ss)'
     out = redact(msg, url)
-    assert "abcd" not in out and "p@ss" not in out and "pooler" not in url or True
+    assert "abcd" not in out and "p@ss" not in out
     assert "***" in out
