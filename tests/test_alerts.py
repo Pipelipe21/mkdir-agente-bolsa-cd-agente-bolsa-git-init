@@ -195,3 +195,13 @@ def test_summary_sent_when_no_alerts(monkeypatch):
     silent = RecordingNotifier()
     radar.run([ASSET], AlertExecutor(silent), silent)
     assert silent.messages == []
+
+
+def test_describe_url_classifies_without_revealing():
+    from jobs.migrate import describe_url
+
+    direct = describe_url("postgresql://postgres:s3cr3t@db.abcd.supabase.co:5432/postgres")
+    assert "Direct" in direct and "s3cr3t" not in direct and "abcd" not in direct
+    pooler = describe_url("postgresql://postgres.abcd:s3cr3t@aws-0-sa-east-1.pooler.supabase.com:5432/postgres")
+    assert "Session pooler" in pooler
+    assert "YOUR-PASSWORD" in describe_url("postgresql://u:[YOUR-PASSWORD]@h.pooler.supabase.com:5432/p")

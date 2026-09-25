@@ -28,6 +28,8 @@ def describe_url(url: str) -> str:
     """Describe el tipo de dirección sin revelar contraseña ni identificador del proyecto."""
     from urllib.parse import urlsplit
 
+    if "YOUR-PASSWORD" in url or "[" in url:
+        return "todavía contiene [YOUR-PASSWORD]: reemplázalo (con corchetes) por tu contraseña"
     try:
         parts = urlsplit(url.strip())
         host, port = parts.hostname or "", parts.port
@@ -43,8 +45,6 @@ def describe_url(url: str) -> str:
     else:
         kind = "no parece una dirección de Supabase"
     notes.append(f"tipo: {kind}")
-    if "YOUR-PASSWORD" in url or "[" in url:
-        notes.append("todavía contiene [YOUR-PASSWORD]: reemplázalo por tu contraseña")
     return "; ".join(notes)
 
 
