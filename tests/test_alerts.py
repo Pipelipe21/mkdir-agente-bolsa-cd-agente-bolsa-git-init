@@ -215,3 +215,23 @@ def test_password_problem_detects_special_chars_without_revealing():
     assert msg and "@" in msg and "SECRETO9" not in msg
     assert password_problem(f"postgresql://postgres.ab:ab#cd@{host}")
     assert password_problem(f"postgresql://postgres.ab:Abc123xyz@{host}") is None
+
+
+def test_build_repository_never_logs_connection_error(monkeypatch, caplog):
+    from core.db import NullRepository
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:TopSecret99@nohost.invalid:5432/db")
+
+    def boom(url):
+        raise OSError(f"failed to resolve host 'TopSecret99@nohost.invalid'")
+
+    monkeypatch.setattr(radar, "connect", boom)
+    with caplog.at_level("INFO"):
+        repo = radar.build_repository()
+    assert isinstance(repo, NullRepository)
+    assert "TopSecret99" not in caplog.text
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:a@b@host.pooler.supabase.com:5432/db")
+    with caplog.at_level("INFO"):
+        assert isinstance(radar.build_repository(), NullRepository)
+    assert "a@b" not in caplog.text

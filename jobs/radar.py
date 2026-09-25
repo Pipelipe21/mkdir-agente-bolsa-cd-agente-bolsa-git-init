@@ -120,7 +120,19 @@ def build_repository() -> Repository:
     if not url:
         log.info("DATABASE_URL no definida: no se guarda historial")
         return NullRepository()
-    return PostgresRepository(connect(url))
+    from jobs.migrate import password_problem
+
+    problem = password_problem(url)
+    if problem:
+        log.error("%s Se sigue sin historial.", problem)
+        return NullRepository()
+    try:
+        return PostgresRepository(connect(url.strip()))
+    except Exception as exc:  # noqa: BLE001
+        # Nunca registrar el texto del error: puede incluir partes de la contraseña.
+        log.error("No se pudo conectar a la base de datos (%s); se sigue sin historial.",
+                  type(exc).__name__)
+        return NullRepository()
 
 
 def main(argv: list[str] | None = None) -> int:
